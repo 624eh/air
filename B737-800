@@ -1,0 +1,159 @@
+import math
+Boeing = {'B737-800' : {'max taxi Weight(lb)' : 156000, 'max takeoff Weight(lb)' : 155500},
+          'B737-800 with winglets' : {'max taxi Weight(lb)' : 173000, 'max takeoff Weight(lb)' : 172500},
+          'B737-800 with winglets with HGW' : {'max taxi Weight(lb)' : 174900, 'max takeoff Weight(lb)' : 174200}}
+aircraft = input('항공기 종류(B737-800,B737-800 with winglets,B737-800 with winglets with HGW) :')
+while True :
+  Weight = float(input('항공기 중량(ton) :'))
+  Weight = Weight * 1000
+  if Weight *2.2046 > Boeing[aircraft]['max taxi Weight(lb)'] :
+    overweight = Boeing[aircraft]['max taxi Weight(lb)'] - Weight * 2.2046
+    print('최대 이동 가능 무게 초과! 무게를 줄이세요! 초과 무게 : {:.3f}(lb)'.format(overweight))
+    overweight = overweight/2.2046
+    print('최대 이동 가능 무게 초과! 무게를 줄이세요! 초과 무게 : {:.3f}(kg)'.format(overweight))
+  elif Weight * 2.2046 > Boeing[aircraft]['max takeoff Weight(lb)'] :
+    overweight = Boeing[aircraft]['max takeoff Weight(lb)'] - Weight * 2.2046
+    print('최대 이륙 가능 무게 초과! 무게를 줄이세요! 초과 무게 : {:.3f}(lb)'.format(overweight))
+    overweight = overweight/2.2046
+    print('최대 이륙 가능 무게 초과! 무게를 줄이세요! 초과 무게 : {:.3f}(kg)'.format(overweight))
+  else :
+    break
+g = 9.81
+Weight = Weight * g
+#활주로 길이 단위 :m, 고도 단위:ft
+airports = {'ICN': {'name': 'Incheon International', 'TORA': 3700, 'altitude': 23},
+            'GMP': {'name': 'Gimpo International', 'TORA': 3600, 'altitude': 58},
+            'CJU': {'name': 'Jeju International', 'TORA': 3180, 'altitude': 118},
+            'PUS': {'name': 'Gimhae International', 'TORA': 3200, 'altitude': 6},
+            'TAE': {'name': 'Daegu International', 'TORA': 2740, 'altitude': 116},
+            'CJJ': {'name': 'Cheongju International', 'TORA': 2743, 'altitude': 191}
+}
+while True :
+  airport_select = input('이륙 공항 선택(국내, IATA코드) :').upper()
+  if airport_select not in airports :
+    print('잘못된 공항입니다. 다시 입력해주세요')
+  else :
+    break
+altitude_0 = airports[airport_select]['altitude']
+TORA = airports[airport_select]['TORA']
+p = 1.225 * (1 - 0.0065* altitude_0*0.3048/288.15) ** (9.81/(287.05*0.0065)-1)
+flap_setting = {'0' : 0.6,
+              '1' : 1.4,
+              '5' : 1.7,
+              '10' :2.0,
+              '15' :2.2,
+              '30' : 2.5,
+              '40' : 2.7}
+while True :
+  flap = input('플랩 설정 :')
+  if flap in flap_setting :
+    CL_max = flap_setting[flap]
+    break
+  else :
+    print('유효하지 않은 플랩 설정입니다!')
+#활주로 상태에 따른 마찰계수
+condition = {'dry' : 0.02,
+             'wet' : 0.04,
+             'snow-Covered' : 0.07,
+             'Icy' : 0.01}
+break_condition = {'dry' : 0.6,
+                  'wet' : 0.3,
+                  'snow-Covered' : 0.2,
+                  'Icy' : 0.07}
+runway_condition = input('활주로 상태 설정(dry,wet,snow-Covered,Icy) :')
+runway_u = condition[runway_condition]
+break_u = break_condition[runway_condition]
+S = float(input('항공기 날개 면적(m*m) :'))
+# 엔진에 따른 고도 = 0일때 최대 추력(단위 : N)
+engine_Thrust = {'CFM56-7B26' : 115654,
+                 'CFM56-7B24' : 106757,
+                 'CFM56-7B27' : 120102}
+
+while True :
+  engine = input('항공기의 엔진 설정 :')
+  if engine in engine_Thrust :
+    Thrust = engine_Thrust[engine] *0.95 * 2
+    break
+  else :
+    print('지원하지 않는 엔진입니다!')
+CL = CL_max * 0.9
+V_stall = (2*Weight / (p*S*CL)) ** 0.5
+CD0 = 0.025
+k = 0.045
+CD = CD0 + k * (CL)**2
+wind_V = float(input('바람의 풍속(m/s) :'))
+angle = math.radians(float(input('바람의 방향(0도, 360도 사이):' )))
+V_wind = -wind_V * math.cos(angle) #순풍 :(+), 역풍 :(-)
+Crosswind = abs(wind_V * math.sin(angle))
+if runway_condition == 'dry' and Crosswind > 17 :
+  print('이륙 금지! 측풍이 너무 강합니다!')
+elif runway_condition == 'wet' and Crosswind > 8 :
+  print('이륙금지! 측풍이 너무 강합니다!')
+elif runway_condition == 'Icy' and Crosswind > 5 :
+  print('이륙금지! 측풍이 너무 강합니다!')
+else :
+  V = 0
+  t = 0
+  dt = 0.0001
+  while True :
+    t += dt
+    a = (2*(Thrust-runway_u*Weight) - p*S*((V_air)**2)*(CD-runway_u*CL))/(2* Weight/g)
+    V += a* dt
+    V_ground = V
+    V_air = V - V_wind
+    Reverse_Thrust = Thrust * 0.35 #역추력은 추력의 0.35배의 힘이 작용한다고 가정
+    L = 0.5 * p * S * CL * (V-V_wind)**2
+    F_rolling = runway_u * (Weight - L)
+    Drag = 0.5 * p * ((V_air)**2) * S *CD
+    F_break = break_u *(Weight - L)
+    if 1-((V_air)**2)*p*S*(CD-runway_u*CL)/(2*Thrust-2*runway_u*Weight) > 0 :
+      len1 = abs(((Weight/g)/(p*S*(CD-runway_u*CL))) * (math.log(2*(Thrust-runway_u*Weight)/(2*(Thrust-runway_u*Weight)-p*S*(CD-runway_u*CL)*(V_air**2)))))
+    else :
+      print('오류 발생! 계산을 건너뜁니다')
+      continue
+    if (p*S*((runway_u+break_u)*CL+CD))/(2*Weight*(runway_u+break_u)+Reverse_Thrust)+1 > 0 :
+      len2 = abs(((Weight/g)/(p*S*((runway_u+break_u)*CL + CD)))* math.log(((V_air**2)*p*S*((runway_u+break_u)*CL+CD))/(2*Weight*(runway_u+break_u)+Reverse_Thrust)+1))
+    else :
+      print('오류 발생! 계산을 건너뜁니다')
+      continue
+    if len1+len2 > TORA :
+      print('주의! 이륙을 포기하면 활주로를 이탈합니다!')
+      v_kn = V * 3.6 / 1.852
+      print('현재 속도 : {:.3f}kn'.format(v_kn))
+      break
+  while True :
+    t += dt
+    a = (2*(Thrust-runway_u*Weight) - p*S*((V_air)**2)*(CD-runway_u*CL))/(2* Weight/g)
+    V += a*dt
+    V_ground = V
+    V_air = V - V_wind
+    distance = abs(((Weight/g)/(p*S*(CD-runway_u*CL))) * math.log(1-((V_air)**2)*p*S*(CD-runway_u*CL)/(2*Thrust-2*runway_u*Weight)))
+    if distance > TORA :
+      print('이륙 실패! 활주로 이탈')
+      print('이탈 거리 : {:.3f}m'.format(distance - TORA))
+      print('현재속도 : {:.3f}kn'.format(V*3.6/1.852))
+      break
+    elif V_air >= 1.25*V_stall :
+      v_kn = V *3.6/1.852
+      print('현재 속도 : {}kn, 이륙 시작!'.format(v_kn))
+      V_avg = V/t
+      L = 0.5 * p * S * CL * (V_air)**2
+      D = 0.5 * p * ((V_air)**2) * S *CD
+      T_net = Thrust-D-runway_u*(Weight - L)
+      if T_net < 0 :
+        print('위험! 순추력이 부족합니다! 이륙 불가!')
+        print('TIP : 플랩, 날개 면적, 공항 상태,엔진 값 등을 바꾸어보세요.')
+      else :
+        print('이륙 예정 공항 : {}'.format(airports[airport_select]['name']))
+        print('활주로 길이 : {}m'.format(TORA))
+        print(f'항공기 기종 : Boeing 737-800, 항공기 엔진 : {engine}')
+        STO = abs(((Weight/g)/(p*S*(CD-runway_u*CL))) * math.log(1-((V_air)**2)*p*S*(CD-runway_u*CL)/(2*Thrust-2*runway_u*Weight)))
+        print(f'예상 활주 거리 : {STO:.3f}m')
+        print(f'예상 활주 거리(오차 요인 고려) : {STO*1.15:.3f}m') # 안전 마진 계수 1.15를 곱함(15%여유)
+        if STO > TORA :
+          print ('활주로 이탈 위험! 예상 이탈 거리 :{:.3f}m'.format(STO-TORA))
+        elif STO * 1.15 > TORA :
+          print('활주로 이탈 가능성 있음! 주의! 예상 이탈 거리 : {:.3f}m 이하'.format(STO*1.15-TORA))
+        else :
+          print('안전한 이륙 가능!')
+      break
