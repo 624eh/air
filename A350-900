@@ -1,0 +1,80 @@
+import math
+while True :
+  Mass = float(input('항공기 중량(ton) :'))
+  Mass = Mass * 1000
+  if Mass > 281000 :
+    overweight = Mass - 281000
+    print('최대 지상 이동 중량을 초과했습니다! 무게를 줄이세요! 초과 무게 : {:.3f}(kg)'.format(overweight))
+    print('최대 지상 이동 중량을 초과했습니다! 무게를 줄이세요! 초과 무게 : {:.3f}(lb)'.format(overweight*2.20462))
+  elif Mass > 280000 :
+    overweight = Mass - 280000
+    print('최대 이륙 가능 중량을 초과했습니다! 초과 무게 : {:.3f}(kg)'.format(overweight))
+    print('최대 이륙 가능 중량을 초과했습니다! 초과 무게 : {:.3f}(lb)'.format(overweight*2.20462))
+  else :
+    break
+g = 9.81
+Weight = Mass * g
+airports = {'ICN': {'name': 'Incheon International', 'TORA': 3700, 'altitude': 23},
+            'GMP': {'name': 'Gimpo International', 'TORA': 3600, 'altitude': 58},
+            'CJU': {'name': 'Jeju International', 'TORA': 3180, 'altitude': 118},
+            'PUS': {'name': 'Gimhae International', 'TORA': 3200, 'altitude': 6},
+            'TAE': {'name': 'Daegu International', 'TORA': 2740, 'altitude': 116},
+            'CJJ': {'name': 'Cheongju International', 'TORA': 2743, 'altitude': 191}
+}
+while True :
+  airport_select = input('이륙 공항 선택(국내, IATA코드) :').upper()
+  if airport_select not in airports :
+    print('잘못된 공항입니다. 다시 입력해주세요')
+  else :
+    break
+altitude_0 = airports[airport_select]['altitude']
+TORA = airports[airport_select]['TORA']
+p = 1.225 * (1 - 0.0065* altitude_0*0.3048/288.15) ** (9.81/(287.05*0.0065)-1) 
+engine_thrust =  374541 # 단위 : N
+Thrust = engine_thrust * 0.95 *2
+#활주로 상태에 따른 마찰계수
+condition = {'dry' : 0.02,
+             'wet' : 0.04,
+             'snow-Covered' : 0.07,
+             'Icy' : 0.01}
+break_condition = {'dry' : 0.6,
+                  'wet' : 0.3,
+                  'snow-Covered' : 0.2,
+                  'Icy' : 0.07}
+runway_condition = input('활주로 상태 설정(dry,wet,snow-Covered,Icy) :')
+runway_u = condition[runway_condition]
+break_u = break_condition[runway_condition]
+S = 443.0 
+flap = 15
+CL_max = 2.3
+CL = CL_max * 0.9
+CD0 = 0.025
+pi = 3.14
+k = 1/(pi*0.8*9.0)
+CD = CD0 + k * (CL)**2
+wind_V = float(input('바람의 풍속(m/s) :'))
+angle = math.radians(float(input('바람의 방향(0도, 360도 사이):' )))
+V_wind = -wind_V * math.cos(angle) #순풍 :(+), 역풍 :(-)
+Crosswind = abs(wind_V * math.sin(angle))
+if runway_condition == 'dry' and Crosswind > 17 :
+  print('이륙 금지! 측풍이 너무 강합니다!')
+elif runway_condition == 'wet' and Crosswind > 8 :
+  print('이륙금지! 측풍이 너무 강합니다!')
+elif runway_condition == 'Icy' and Crosswind > 5 :
+  print('이륙금지! 측풍이 너무 강합니다!')
+else :
+  V=0
+  V_ground = V
+  V_air = V - V_wind
+  t=0
+  dt=0.0001
+  while True :
+    a = (2(Thrust-Weight) - p*S*((V_air)**2)*(CD-u*CL))/(2*m)
+    V += a * dt
+    V_ground = V
+    V_air = V - V_wind
+    Reverse_Trust = Trust * 0.35 # 역추진은 엔진의 0.35배의 출력
+    Lift = 0.5 * p * S * CL *(V_air**2)
+    F_rolling = runway_u *(Weight - Lift)
+    Drag = 0.5 * p * S * CD * (V_air**2)
+    F_break = break_u * (Weight - L)
